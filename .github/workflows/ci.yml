@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        # Make sure container is ready
+        options: >-
+          --health-cmd="pg_isready -U test_user -d test_db" 
+          --health-interval=5s 
+          --health-timeout=5s 
+          --health-retries=5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js 18
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - name: Install dependencies
+      run: npm install
+
+    # If you have a migrations system, run your migrations
+    - name: Run migrations
+      run: |
+        # e.g., using Knex:
+        npx knex migrate:latest --env test
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: test_db
+        DB_USER: test_user
+        DB_PASSWORD: test_pass
+
+    - name: Run tests
+      run: npm test
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: test_db
+        DB_USER: test_user
+        DB_PASSWORD: test_pass
+        JWT_SECRET: 'some_test_secret'
